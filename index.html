@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Widgets ArchDaily</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!--styles-->
+        <link rel="stylesheet" type="text/css" href="https://afd.adsttc.com/afd/application-aa973467ef6e53e68a63e187683290a6b0d0af1adb7413b193d0624f799f38ba.css">
+
+        <!--libs-->
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.13/vue.js"></script>
+    </head>
+    <body>
+
+        <div class="afd-main-sidebar afd-main-sidebar--left js-desktop-widgets-container">
+
+            <aside class="afd-sidebar-widget afd-sidebar-widget--margin js-widgets" data-ad-medium="widget" data-ad-name="most-visited-index" data-site="us" data-widget="most-visited" id="most-visited">
+                <h2 class="afd-title-widget">most visited</h2>
+                <ul>
+                    <li class="afd-widget-item" v-for="image in images">
+                        <!--{{image}}-->
+                        <figure>
+                            <a class="afd-widget-item-thumb" v-bind:href="image.project_url" v-bind:title="image.project_title">
+                                <img v-bind:alt="image.project_title" class="b-lazy b-error b-error b-error b-loaded" data-pin-nopin="true" height="125" width="125" v-bind:src="image.image_url">
+                            </a>
+                        </figure>
+                        <h3 class="afd-widget-item-title">
+                            <a class="afd-widget-item-link" v-bind:href="image.project_url">
+                                {{image.project_title}}
+                            </a>
+                        </h3>
+                    </li>
+                </ul>
+
+            </aside>
+
+        </div>
+
+        <script>
+new Vue({
+    el: "#most-visited",
+    data: {
+        images: {}
+    },
+    mounted: function () {
+        var self = this;
+        var images_cache = localStorage.getItem("images_cache");
+
+        //IF REQUESTED LESS 2 MIN.
+        var cache = Date.now() - images_cache;
+        if (cache < 120000) { //2*60*1000
+            console.log("from cache", cache / 1000);
+
+            var imagesJSON = localStorage.getItem("images");
+            if (imagesJSON) {
+
+                //CATCH JSON PARSE ERRORS
+                var images = null;
+                try {
+                    images = JSON.parse(imagesJSON);
+                } catch (e) {
+                    console.log(e, imagesJSON);
+                }
+
+                if (images) {
+                    this.images = images;
+                    
+                    //KEEP 2 MIN. INTERVAL
+                    setTimeout(function () {
+                        self.getImages();
+                    }, 120000 - cache);
+                    return;
+                }
+            }
+        }
+
+        //GET FRESH IMAGES        
+        self.getImages();
+    },
+    methods: {
+        getImages: function () {
+            console.log("new images request");
+            var self = this;
+
+            $.getJSON("http://nrd.adsttc.com/api/v1/fetch-images/us?inspireme_id=64727&page=1", function (data) {
+                var images = data.images;
+
+                //GET 3 RANDOM IMAGES
+                var randomImages = [];
+                for (var i = 0; i < 3; i++) {
+                    if (!images.length) {
+                        break;
+                    }
+
+                    var index = Math.floor(Math.random() * images.length);
+                    randomImages.push(images[index]);
+                    images.splice(index, 1);
+                }
+
+                //LOAD VUE DATA
+                self.images = randomImages;
+
+                //LOCAL CACHE
+                localStorage.setItem("images_cache", Date.now());
+                localStorage.setItem("images", JSON.stringify(randomImages));
+
+                setTimeout(function () {
+                    self.getImages();
+                }, 120000); //2 MIN
+            });
+        }
+    }
+});
+        </script>
+
+    </body>
+</html>
